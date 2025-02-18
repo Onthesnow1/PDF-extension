@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "我的第一个扩展",
+  "version": "1.0",
+  "description": "这是一个示例扩展",
+  "permissions": [],
+  "action": {
+    "default_popup": "popup.html"
+  }
+} 
