@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('toggleSelection').style.display = 'none';
   }
 
-  // 新增：创建内容容器
+  // 创建内容容器
   const createContentItem = (text, timestamp, index, url) => {
     const div = document.createElement('div');
     div.className = 'content-item';
@@ -18,6 +18,15 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="content-meta">
         <span class="content-time">${new Date(timestamp).toLocaleString()}</span>
         <button class="delete-btn" data-index="${index}">×</button>
+        <button class="send-btn" data-index="${index}" style="
+          margin-right: 8px;
+          padding: 2px 8px;
+          background: #1890ff;
+          color: white;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+          font-size: 12px;">发送</button>
       </div>
       <div class="content-url">
         <a href="${url}" title="${url}" target="_blank" style="color: #666; font-size: 12px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; display: block; white-space: nowrap;">${url}</a>
@@ -32,28 +41,31 @@ document.addEventListener('DOMContentLoaded', () => {
       contentDiv.innerHTML = ''; // 清空旧内容
       
       if (result.savedSelections?.length) {
-        result.savedSelections
-          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // 按时间倒序
-          .forEach((item, idx) => {
-            contentDiv.appendChild(createContentItem(
-              item.content, 
-              item.timestamp, 
-              result.savedSelections.indexOf(item),
-              item.url || '未知来源'
-            ));
-            
-            // 在每个项目后添加分割线，除了最后一个
-            if (idx < result.savedSelections.length - 1) {
-              const divider = document.createElement('hr');
-              divider.style.cssText = `
-                margin: 10px 0;
-                border: none;
-                height: 1px;
-                background-color: #e0e0e0;
-              `;
-              contentDiv.appendChild(divider);
-            }
-          });
+        // 先进行排序
+        const sortedSelections = result.savedSelections
+          .map((item, originalIndex) => ({...item, originalIndex}))  // 保存原始索引
+          .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // 按时间倒序
+
+        sortedSelections.forEach((item, idx) => {
+          contentDiv.appendChild(createContentItem(
+            item.content, 
+            item.timestamp, 
+            item.originalIndex,  // 使用原始索引
+            item.url || '未知来源'
+          ));
+          
+          // 在每个项目后添加分割线，除了最后一个
+          if (idx < sortedSelections.length - 1) {
+            const divider = document.createElement('hr');
+            divider.style.cssText = `
+              margin: 10px 0;
+              border: none;
+              height: 1px;
+              background-color: #e0e0e0;
+            `;
+            contentDiv.appendChild(divider);
+          }
+        });
       } else {
         contentDiv.textContent = '暂无保存内容';
       }
@@ -143,7 +155,23 @@ document.addEventListener('DOMContentLoaded', () => {
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
       deleteBtn.textContent = '删除';
-      deleteBtn.onclick = () => deleteEntry(index);
+      deleteBtn.dataset.index = index;  // 使用data-index属性存储索引
+      
+      // 创建发送按钮
+      const sendBtn = document.createElement('button');
+      sendBtn.className = 'send-btn';
+      sendBtn.textContent = '发送';
+      sendBtn.dataset.index = index;  // 使用data-index属性存储索引
+      sendBtn.style.cssText = `
+        margin-right: 8px;
+        padding: 2px 8px;
+        background: #1890ff;
+        color: white;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+      `;
       
       // 设置样式
       entry.style.cssText = `
@@ -175,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       entry.appendChild(timeContainer);
       entry.appendChild(urlContainer);
       entry.appendChild(deleteBtn);
+      entry.appendChild(sendBtn);
       contentDiv.appendChild(entry);
       
       // 在每个项目后添加分割线，除了最后一个
@@ -194,15 +223,19 @@ document.addEventListener('DOMContentLoaded', () => {
   function deleteEntry(index) {
     chrome.storage.local.get(['savedSelections'], (result) => {
       const updated = result.savedSelections.filter((_, i) => i !== index);
-      chrome.storage.local.set({ savedSelections: updated });
+      chrome.storage.local.set({ savedSelections: updated }, () => {
+        loadSavedContent(); // 删除后立即重新加载内容
+      });
     });
   }
 
-  // 在loadSavedContent中添加事件委托
+  // 统一使用事件委托处理删除
   contentDiv.addEventListener('click', (e) => {
     if (e.target.classList.contains('delete-btn')) {
       const index = parseInt(e.target.dataset.index);
-      deleteEntry(index);
+      if (!isNaN(index)) {
+        deleteEntry(index);
+      }
     }
   });
 }); 

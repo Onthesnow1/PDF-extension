@@ -1,0 +1,23 @@
+{
+  "name": "pdf-extension",
+  "version": "1.0.0",
+  "main": "popup.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Onthesnow1/PDF-extension.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Onthesnow1/PDF-extension/issues"
+  },
+  "homepage": "https://github.com/Onthesnow1/PDF-extension#readme",
+  "description": "",
+  "dependencies": {
+    "rxdb": "^16.8.0"
+  }
+}
