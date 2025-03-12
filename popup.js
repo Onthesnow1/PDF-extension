@@ -10,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 新增：创建内容容器
-  const createContentItem = (text, timestamp, index) => {
+  const createContentItem = (text, timestamp, index, url) => {
     const div = document.createElement('div');
     div.className = 'content-item';
     div.innerHTML = `
@@ -18,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="content-meta">
         <span class="content-time">${new Date(timestamp).toLocaleString()}</span>
         <button class="delete-btn" data-index="${index}">×</button>
+      </div>
+      <div class="content-url">
+        <a href="${url}" title="${url}" target="_blank" style="color: #666; font-size: 12px; text-decoration: none; overflow: hidden; text-overflow: ellipsis; display: block; white-space: nowrap;">${url}</a>
       </div>
     `;
     return div;
@@ -31,8 +34,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (result.savedSelections?.length) {
         result.savedSelections
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // 按时间倒序
-          .forEach(item => {
-            contentDiv.appendChild(createContentItem(item.content, item.timestamp, result.savedSelections.indexOf(item)));
+          .forEach((item, idx) => {
+            contentDiv.appendChild(createContentItem(
+              item.content, 
+              item.timestamp, 
+              result.savedSelections.indexOf(item),
+              item.url || '未知来源'
+            ));
+            
+            // 在每个项目后添加分割线，除了最后一个
+            if (idx < result.savedSelections.length - 1) {
+              const divider = document.createElement('hr');
+              divider.style.cssText = `
+                margin: 10px 0;
+                border: none;
+                height: 1px;
+                background-color: #e0e0e0;
+              `;
+              contentDiv.appendChild(divider);
+            }
           });
       } else {
         contentDiv.textContent = '暂无保存内容';
@@ -85,6 +105,40 @@ document.addEventListener('DOMContentLoaded', () => {
       contentText.className = 'content-text';
       contentText.textContent = item.content;
       
+      // 创建URL容器
+      const urlContainer = document.createElement('div');
+      urlContainer.className = 'content-url';
+      urlContainer.style.cssText = `
+        margin-top: 5px;
+        font-size: 12px;
+        color: #666;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      `;
+      
+      // 创建URL链接
+      const urlLink = document.createElement('a');
+      urlLink.href = item.url || '#';
+      urlLink.textContent = item.url || '未知来源';
+      urlLink.title = item.url || '未知来源';
+      urlLink.target = '_blank';
+      urlLink.style.cssText = `
+        color: #666;
+        text-decoration: none;
+      `;
+      urlContainer.appendChild(urlLink);
+      
+      // 创建时间容器
+      const timeContainer = document.createElement('div');
+      timeContainer.className = 'content-time';
+      timeContainer.textContent = new Date(item.timestamp).toLocaleString();
+      timeContainer.style.cssText = `
+        margin-top: 5px;
+        font-size: 12px;
+        color: #888;
+      `;
+      
       // 创建删除按钮
       const deleteBtn = document.createElement('button');
       deleteBtn.className = 'delete-btn';
@@ -98,14 +152,9 @@ document.addEventListener('DOMContentLoaded', () => {
         border: 1px solid #e0e0e0;
         border-radius: 4px;
         background: #fff;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
       `;
       
       contentText.style.cssText = `
-        flex: 1;
-        margin-right: 10px;
         word-break: break-all;
       `;
       
@@ -117,11 +166,28 @@ document.addEventListener('DOMContentLoaded', () => {
         border-radius: 3px;
         cursor: pointer;
         font-size: 12px;
+        float: right;
+        margin-top: 5px;
       `;
       
+      // 添加所有元素到条目中
       entry.appendChild(contentText);
+      entry.appendChild(timeContainer);
+      entry.appendChild(urlContainer);
       entry.appendChild(deleteBtn);
       contentDiv.appendChild(entry);
+      
+      // 在每个项目后添加分割线，除了最后一个
+      if (index < selections.length - 1) {
+        const divider = document.createElement('hr');
+        divider.style.cssText = `
+          margin: 15px 0;
+          border: none;
+          height: 1px;
+          background-color: #e0e0e0;
+        `;
+        contentDiv.appendChild(divider);
+      }
     });
   }
 
