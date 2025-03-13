@@ -18,6 +18,7 @@
   "homepage": "https://github.com/Onthesnow1/PDF-extension#readme",
   "description": "",
   "dependencies": {
-    "rxdb": "^16.8.0"
+    "rxdb": "^16.8.0",
+    "rxjs": "^7.8.2"
   }
 }

@@ -7,23 +7,31 @@
     "activeTab",
     "scripting",
     "storage",
-    "contextMenus"
+    "contextMenus",
+    "tabs"
   ],
   "action": {
     "default_popup": "popup.html"
   },
-  "content_scripts": [{
-    "matches": ["<all_urls>"],
-    "js": ["scripts/content-script.js"],
-    "css": ["styles/content.css"]
-  }],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["scripts/content-script.js"],
+      "css": ["styles/content.css"]
+    },
+    {
+      "matches": ["http://localhost:8081/*"],
+      "js": ["scripts/vditor-content-script.js"]
+    }
+  ],
   "background": {
     "service_worker": "background/sw.js"
   },
   "web_accessible_resources": [{
     "resources": [
       "styles/*",
-      "scripts/content-script.js"
+      "scripts/content-script.js",
+      "scripts/vditor-content-script.js"
     ],
     "matches": ["<all_urls>"]
   }]

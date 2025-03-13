@@ -102,20 +102,49 @@ document.addEventListener('mouseup', function(e) {
         // 立即隐藏按钮
         floatingButton.style.display = 'none';
         
-        chrome.storage.local.get(['savedSelections'], function(result) {
-          const savedSelections = result.savedSelections || [];
-          savedSelections.push({
-            content: selectedText,
-            timestamp: new Date().toISOString(),
-            url: window.location.href
+        try {
+          // 尝试保存到本地存储
+          chrome.storage.local.get(['savedSelections'], function(result) {
+            try {
+              const savedSelections = result.savedSelections || [];
+              savedSelections.push({
+                content: selectedText,
+                timestamp: new Date().toISOString(),
+                url: window.location.href
+              });
+              
+              chrome.storage.local.set({ savedSelections }, function() {
+                try {
+                  // 发送到 Vditor
+                  sendContentToVditor(selectedText);
+                  showSavedNotification();
+                  // 清除选中的文本
+                  window.getSelection().removeAllRanges();
+                } catch (innerError) {
+                  console.error('处理选中文本时出错:', innerError);
+                  showErrorNotification('保存失败: ' + innerError.message);
+                }
+              });
+            } catch (storageError) {
+              console.error('存储数据时出错:', storageError);
+              // 即使存储失败，仍然尝试发送到 Vditor
+              sendContentToVditor(selectedText);
+              showErrorNotification('本地存储失败，但已尝试发送到编辑器');
+              window.getSelection().removeAllRanges();
+            }
           });
-          
-          chrome.storage.local.set({ savedSelections }, function() {
+        } catch (error) {
+          console.error('保存选中文本时出错:', error);
+          // 如果 Chrome API 失败，仍然尝试发送到 Vditor
+          try {
+            sendContentToVditor(selectedText);
             showSavedNotification();
-            // 清除选中的文本
             window.getSelection().removeAllRanges();
-          });
-        });
+          } catch (vditorError) {
+            console.error('发送到编辑器失败:', vditorError);
+            showErrorNotification('保存失败: ' + error.message);
+          }
+        }
       };
       
       document.body.appendChild(floatingButton);
@@ -205,3 +234,84 @@ style.textContent = `
   }
 `;
 document.head.appendChild(style);
+
+// 向 Vditor 编辑器发送内容的函数
+function sendContentToVditor(content) {
+  try {
+    const currentUrl = window.location.href;
+    // const content5 = content.substring(0, 10) + (content.length > 10 ? '...' : '');
+    const contentWithSource = `${content}\n\n$\\color{blue}{From}$ [${currentUrl}](${currentUrl})\n\n`;
+    // 通过 chrome.runtime.sendMessage 发送消息到 background script
+    chrome.runtime.sendMessage({
+      action: 'sendToVditor',
+      content: contentWithSource,
+      targetUrl: 'http://localhost:8081/workerspace?wid=38a8c679-8c2f-425c-baa0-2ee29810183f'
+    }, function(response) {
+      if (chrome.runtime.lastError) {
+        console.error('发送消息到 background 失败:', chrome.runtime.lastError);
+        showErrorNotification('发送失败: ' + chrome.runtime.lastError.message);
+        return;
+      }
+      
+      if (response && response.success) {
+        console.log('内容已发送到 Vditor');
+      } else {
+        console.error('发送到 Vditor 失败:', response ? response.error : '未知错误');
+        showErrorNotification('发送失败: ' + (response ? response.error : '未知错误'));
+      }
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('发送内容到 Vditor 失败:', error);
+    showErrorNotification('发送失败: ' + error.message);
+    return false;
+  }
+}
+
+// 监听 Vditor 响应消息
+window.addEventListener('message', function(event) {
+  try {
+    // 检查消息类型
+    if (event.data && event.data.type === 'VDITOR_INSERT_RESPONSE') {
+      console.log('收到 Vditor 响应:', event.data);
+      
+      if (event.data.success) {
+        showSavedNotification(); // 复用现有的通知函数
+        console.log('内容已成功插入到编辑器');
+      } else {
+        console.error('插入内容失败:', event.data.error);
+        // 显示错误通知
+        showErrorNotification('插入失败：' + (event.data.error || '未知错误'));
+      }
+    }
+  } catch (error) {
+    console.error('处理 Vditor 响应时出错:', error);
+  }
+}, false);
+
+// 添加错误通知函数
+function showErrorNotification(message) {
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #f44336;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    z-index: 10000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    font-family: system-ui, -apple-system, sans-serif;
+    font-size: 14px;
+    animation: fadeInOut 2s ease-in-out forwards;
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+
+  setTimeout(() => {
+    document.body.removeChild(notification);
+  }, 2000);
+}

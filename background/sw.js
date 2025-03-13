@@ -55,4 +55,52 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+  
+  // 处理发送到 Vditor 的请求
+  if (request.action === 'sendToVditor') {
+    const targetUrl = request.targetUrl || 'http://localhost:8081';
+    const urlPattern = targetUrl.split('?')[0]; // 移除查询参数
+    
+    // 查找匹配的标签页
+    chrome.tabs.query({ url: urlPattern + '*' }, function(tabs) {
+      if (tabs.length === 0) {
+        // 没有找到匹配的标签页，尝试打开一个新标签页
+        chrome.tabs.create({ url: targetUrl, active: false }, function(tab) {
+          // 等待标签页加载完成
+          setTimeout(() => {
+            sendMessageToVditorTab(tab.id, request.content, sendResponse);
+          }, 2000); // 给页面加载留出时间
+        });
+      } else {
+        // 找到匹配的标签页，发送消息
+        sendMessageToVditorTab(tabs[0].id, request.content, sendResponse);
+      }
+    });
+    
+    return true; // 保持消息通道开放用于异步响应
+  }
 });
+
+// 发送消息到 Vditor 标签页
+function sendMessageToVditorTab(tabId, content, sendResponse) {
+  chrome.tabs.sendMessage(tabId, {
+    type: 'VDITOR_INSERT_CONTENT',
+    content: content,
+    timestamp: new Date().getTime()
+  }, function(response) {
+    if (chrome.runtime.lastError) {
+      console.error('发送到 Vditor 标签页失败:', chrome.runtime.lastError);
+      sendResponse({ success: false, error: chrome.runtime.lastError.message });
+      return;
+    }
+    
+    if (response && response.success) {
+      sendResponse({ success: true });
+    } else {
+      sendResponse({ 
+        success: false, 
+        error: response ? response.error : '未收到 Vditor 响应'
+      });
+    }
+  });
+}
